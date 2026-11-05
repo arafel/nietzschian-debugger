@@ -21,7 +21,7 @@ You paste your bug. It doesn't fix it. Instead, it:
 
 AI is making developers weaker. Copy-paste from ChatGPT, ship, repeat. Nobody understands their own code anymore. **Nietzschian Debugger forges stronger developers** — through struggle, not shortcuts.
 
-This isn't anti-AI — it runs on Claude, on purpose. It's anti-*outsourcing-your-thinking*. Every other tool uses the model to hand you the answer; this one uses it to hand the question back.
+This isn't anti-AI — it runs on Claude or other models, on purpose. It's anti-*outsourcing-your-thinking*. Every other tool uses the model to hand you the answer; this one uses it to hand the question back.
 
 > "He who has a why to debug can bear almost any how."
 
@@ -82,8 +82,8 @@ nietzschian debug --model ollama:llama3.1 "my function returns null sometimes"
 ## Models — set one up, switch any time
 
 **Claude is the default and the sharpest experience.** With `ANTHROPIC_API_KEY` set,
-every command just works with no flags. But the tool is model-agnostic — it speaks
-the OpenAI API, so almost any hosted or local model works too.
+every command just works with no flags. OpenAI uses the Responses API; other
+hosted and local providers use OpenAI-compatible Chat Completions.
 
 ### Switching models
 
@@ -102,9 +102,10 @@ to change model, re-run the command with a different `--model`.)
 
 ### Hosted models (bring your own key)
 
-Set the matching key, then select the model:
+Install the optional SDK, set the matching key, then select the model:
 
 ```bash
+pip install "nietzschian-debugger[providers]"
 export OPENAI_API_KEY=...     # or GEMINI_API_KEY, DEEPSEEK_API_KEY, GROQ_API_KEY, …
 nietzschian debug --model openai:gpt-4o-mini "..."
 nietzschian debug --model deepseek:deepseek-chat "..."
@@ -113,6 +114,30 @@ nietzschian debug --model gemini:gemini-1.5-flash "..."
 
 Supported: **openai, gemini, deepseek, groq, mistral, together, openrouter, xai** —
 plus `custom:<model>` with `NIETZSCHIAN_BASE_URL` for any other OpenAI-compatible endpoint.
+
+### OpenAI and Codex models
+
+Use an OpenAI API key and `--model openai` (defaults to `gpt-4o-mini`), or specify
+a Responses-compatible model available to your API account:
+
+```bash
+export OPENAI_API_KEY="your-api-key"
+nietzschian debug --model openai "My login endpoint fails randomly"
+nietzschian roast ./messy.py --model openai:gpt-4o-mini
+nietzschian predict ./parsers.py --model openai:gpt-5.1-codex
+```
+
+This calls the OpenAI API directly; it doesn't use your ChatGPT browser session
+or Codex CLI login. The same lenses, prompts, answer-leak checks, scoring, and
+session storage apply. Internal judge and summary calls use your selected model
+too. Conversations are managed locally and requests set `store=False`; this
+does not change the API's separate data retention policies.
+
+The integration follows the official [text generation](https://developers.openai.com/api/docs/guides/text)
+and [streaming](https://developers.openai.com/api/docs/guides/streaming-responses)
+guides. It extracts assistant text only and reports incomplete or empty responses
+as errors. OpenAI token counts use the existing rough estimate rather than an
+exact tokenizer. Drop `--model` to return to Claude.
 
 ### Local models with Ollama (no key, no cost, offline)
 
@@ -399,6 +424,7 @@ nietzschian debug "test problem"
 
 - Python >= 3.10
 - Claude API via the Anthropic SDK
+- OpenAI Responses API and compatible providers via the optional OpenAI SDK
 - Click for the CLI, Rich for the terminal UI
 - pytest for testing
 

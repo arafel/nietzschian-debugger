@@ -1,4 +1,4 @@
-"""Optional non-Anthropic providers (OpenAI, Ollama, Gemini) via the OpenAI API.
+"""Optional providers: OpenAI Responses and OpenAI-compatible chat APIs.
 
 Claude is the default and the tuned experience. These are BYOK alternatives for
 people who insist -- selected with `--model openai:gpt-4o-mini`, `ollama:llama3`,
@@ -127,10 +127,40 @@ def _msgs(system: str, messages: list[dict[str, str]]) -> list[dict[str, str]]:
     return [{"role": "system", "content": system}, *messages]
 
 
+def _response_args(system: str, messages: list[dict[str, str]], model: str) -> dict:
+    # Send the full locally managed conversation on every call, including judge
+    # and summarization calls. No server-side conversation state is required.
+    return dict(
+        model=model or _model,
+        instructions=system,
+        input=messages,
+        max_output_tokens=4096,  # includes reasoning tokens for reasoning models
+        store=False,
+    )
+
+
+def _response_text(response) -> str:
+    if response.status != "completed":
+        raise ProviderError(f"OpenAI response did not complete ({response.status}).")
+    if not response.output_text:
+        raise ProviderError("OpenAI returned no text. Try another model or retry the request.")
+    return response.output_text
+
+
 def stream(system: str, messages: list[dict[str, str]], model: str, callbacks) -> str:
-    client = _client()
     full = ""
     try:
+        client = _client()
+        if _provider == "openai":
+            with client.responses.stream(**_response_args(system, messages, model)) as response:
+                for event in response:
+                    if event.type == "response.output_text.delta":
+                        callbacks.on_text(event.delta)
+                    elif event.type == "error":
+                        raise ProviderError(event.message)
+                full = _response_text(response.get_final_response())
+            callbacks.on_complete(full)
+            return full
         response = client.chat.completions.create(
             model=model or _model,
             messages=_msgs(system, messages),
@@ -152,6 +182,8 @@ def stream(system: str, messages: list[dict[str, str]], model: str, callbacks) -
 
 def complete(system: str, messages: list[dict[str, str]], model: str) -> str:
     client = _client()
+    if _provider == "openai":
+        return _response_text(client.responses.create(**_response_args(system, messages, model)))
     response = client.chat.completions.create(
         model=model or _model,
         messages=_msgs(system, messages),

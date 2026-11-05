@@ -42,6 +42,7 @@ classifiers = [
 dependencies = [
     "anthropic>=0.40.0",
     "click>=8.1.0",
+    "openai>=3.41.0",
     "rich>=13.0.0",
 ]
 
@@ -53,7 +54,7 @@ dev = [
 # Non-Anthropic models (OpenAI, Ollama, Gemini, DeepSeek, Groq, ...) via the
 # OpenAI-compatible API. Claude needs none of this.
 providers = [
-    "openai>=1.0.0",
+    "openai>=1.66.0",
 ]
 
 [project.scripts]
